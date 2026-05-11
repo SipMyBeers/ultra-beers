@@ -1,70 +1,97 @@
 import Link from "next/link";
 import { listPlans } from "@/lib/plans";
+import { listDecisions } from "@/lib/decisions";
 import { NewPlanButton } from "@/components/NewPlanButton";
 import { TopNav } from "@/components/TopNav";
+import { PeersPane } from "@/components/PeersPane";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const plans = await listPlans();
+  const [plans, decisions] = await Promise.all([listPlans(), listDecisions()]);
+  const pendingDecisions = decisions.filter((d) => d.status === "pending").length;
 
   return (
-    <main style={{ maxWidth: 880, margin: "0 auto", padding: "32px 24px 80px" }}>
+    <main style={{ maxWidth: 980, margin: "0 auto", padding: "28px 24px 80px" }}>
       <TopNav active="plans" />
+
+      <PeersPane />
+
+      <div className="pixel-divider" />
 
       <header
         style={{
           display: "flex",
           alignItems: "baseline",
           justifyContent: "space-between",
-          marginTop: 24,
-          marginBottom: 24,
+          marginTop: 8,
+          marginBottom: 18,
         }}
       >
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: -0.4 }}>plans</h1>
-          <p style={{ color: "var(--fg-dim)", fontSize: 13, marginTop: 2 }}>
+          <h1 style={{ color: "var(--accent)", margin: 0 }}>plans</h1>
+          <p
+            style={{
+              color: "var(--fg-dim)",
+              fontSize: 12,
+              fontFamily: "var(--font-crt)",
+              marginTop: 2,
+              letterSpacing: 0.4,
+            }}
+          >
             three local agents critique your plan in parallel.
           </p>
         </div>
-        <NewPlanButton />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {pendingDecisions > 0 && (
+            <Link
+              href="/decisions"
+              style={{
+                fontSize: 10,
+                fontFamily: "var(--font-pixel)",
+                color: "var(--magenta)",
+                border: "2px solid var(--magenta)",
+                padding: "5px 10px",
+                textShadow: "0 0 6px rgba(255, 119, 168, 0.5)",
+                letterSpacing: 0.8,
+              }}
+            >
+              {pendingDecisions} pending →
+            </Link>
+          )}
+          <NewPlanButton />
+        </div>
       </header>
 
       {plans.length === 0 ? (
         <div
+          className="pixel-card flat"
           style={{
-            border: "1px dashed var(--border)",
-            borderRadius: 10,
-            padding: 48,
+            padding: 36,
             textAlign: "center",
             color: "var(--fg-dim)",
           }}
         >
-          <p style={{ fontSize: 14, marginBottom: 6 }}>No plans yet.</p>
-          <p style={{ fontSize: 12, color: "var(--fg-faint)" }}>
-            Write a plan, refine it with parallel local Claude agents, ship.
+          <p style={{ fontFamily: "var(--font-crt)", fontSize: 18, marginBottom: 4 }}>
+            no plans yet
+          </p>
+          <p style={{ fontSize: 11, color: "var(--fg-faint)" }}>
+            write a plan, refine it with parallel local Claude agents, ship.
           </p>
         </div>
       ) : (
-        <ul style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {plans.map((p) => (
             <li key={p.id}>
-              <Link
-                href={`/plan/${p.id}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 14px",
-                  background: "var(--bg-elev)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  color: "var(--fg)",
-                  fontSize: 13,
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{p.title}</span>
-                <span style={{ color: "var(--fg-faint)", fontSize: 11 }}>
+              <Link href={`/plan/${p.id}`} className="pixel-card flat" style={planRowStyle}>
+                <span style={{ fontWeight: 600, color: "var(--fg)" }}>{p.title}</span>
+                <span
+                  style={{
+                    color: "var(--fg-faint)",
+                    fontSize: 10,
+                    fontFamily: "var(--font-pixel)",
+                  }}
+                >
                   {new Date(p.updatedAt).toLocaleString()}
                 </span>
               </Link>
@@ -76,21 +103,38 @@ export default async function HomePage() {
       <footer
         style={{
           marginTop: 48,
-          paddingTop: 16,
-          borderTop: "1px solid var(--border)",
-          fontSize: 11,
+          paddingTop: 14,
+          borderTop: "2px solid var(--border)",
+          fontSize: 9,
           color: "var(--fg-faint)",
           display: "flex",
           justifyContent: "space-between",
+          fontFamily: "var(--font-pixel)",
+          letterSpacing: 0.8,
         }}
       >
         <span>
-          plans live at <code>~/.ultra-beers/plans/</code>
+          plans · <code style={{ color: "var(--lime)" }}>~/.ultra-beers/</code>
         </span>
-        <a href="https://github.com/SipMyBeers/ultra-beers" target="_blank" rel="noreferrer">
+        <a
+          href="https://github.com/SipMyBeers/ultra-beers"
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: "var(--magenta)" }}
+        >
           github
         </a>
       </footer>
     </main>
   );
 }
+
+const planRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "12px 16px",
+  color: "var(--fg)",
+  fontSize: 13,
+  textShadow: "none",
+};

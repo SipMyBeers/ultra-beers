@@ -68,13 +68,26 @@ PLAN
 ./bin/ub-refine.sh "Quick plan: do X then Y"
 ```
 
-## Claude Code slash command
+## Claude Code slash commands
 
-A companion slash command lives at [`claude-commands/ultrabeers.md`](claude-commands/ultrabeers.md). Copy it to `~/.claude/commands/ultrabeers.md` and `/ultrabeers <plan>` will invoke ultra-beers from inside any Claude Code session, then summarize the three agents' critiques into a single patch list.
+Two companion slash commands live in [`claude-commands/`](claude-commands/). Copy them to `~/.claude/commands/`:
 
 ```bash
-cp claude-commands/ultrabeers.md ~/.claude/commands/ultrabeers.md
+cp claude-commands/*.md ~/.claude/commands/
 ```
+
+- **`/ultrabeers <plan>`** — refines a plan from any Claude Code session and summarizes the three agents' critiques into one patch list.
+- **`/ultrabridge`** — bridges ultra-beers to the [claude-peers MCP](https://github.com/louislva/claude-peers-mcp). Subcommands: `sync` (default; refresh peer roster), `status`, `assign <peer-id> <decision-id>`, `inbox` (route peer replies into decisions).
+
+## Colony pairing (claude-peers)
+
+If you run multiple Claude Code sessions on the same machine and have the `claude-peers` MCP server set up, ultra-beers becomes the colony dashboard. The home page renders a `Peers` pane with each peer's `set_summary` and a live/stale dot. The bridging flow:
+
+```
+ultra-beers (web UI + REST API)   ←HTTP→   orchestrator session   ←MCP→   peers
+```
+
+ultra-beers can't call MCP tools directly (it's a Next.js server, not a Claude Code session), so the orchestrator runs `/ultrabridge sync` to refresh the registry, `/ultrabridge assign` to route a decision to a peer, and `/ultrabridge inbox` to relay replies back. Peer registry persists at `~/.ultra-beers/peers.json`.
 
 ## How it works
 
