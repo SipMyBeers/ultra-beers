@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
-type Active = "plans" | "decisions" | "vault" | "repos";
+type Active = "plans" | "decisions" | "vault" | "repos" | "inbox";
 
 export function TopNav({ active }: { active: Active }) {
   return (
@@ -18,6 +18,9 @@ export function TopNav({ active }: { active: Active }) {
         <span className="dot" />
         <span>ULTRA</span>
         <span className="beers">·BEERS</span>
+      </Link>
+      <Link href="/inbox" className={`nav-tab ${active === "inbox" ? "active" : ""}`}>
+        inbox
       </Link>
       <Link href="/" className={`nav-tab ${active === "plans" ? "active" : ""}`}>
         plans

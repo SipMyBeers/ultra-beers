@@ -122,6 +122,17 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Inbox (v0.9)
+
+`/inbox` is the cross-project "what needs my call right now" view. It scans every git repo in your configured roots that has activity in the last 90 days, runs the same decision-point detection used in the per-repo deep-dive, and aggregates every hit into a single ranked queue.
+
+- A banner at the top links to the manual `/decisions` queue with a count of pending items.
+- Type filters (heading / task / marker) and a repo filter narrow the list.
+- Each row shows the repo, source file + line number, the decision text and surrounding context.
+- **plan** and **decide** buttons on every row pre-fill the rest of ultra-beers with the source path baked into the context.
+
+Idle repos (no commit in 90 days) are skipped; the page reports how many were filtered out. To force a re-scan, reload — there's no cache.
+
 ## Repo deep-dive (v0.8)
 
 Click any repo on the `/repos` list and you land on `/repos/<id>` — a per-project dashboard that pulls together:
