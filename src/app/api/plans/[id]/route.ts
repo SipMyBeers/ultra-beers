@@ -13,11 +13,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = (await req.json().catch(() => ({}))) as { content?: string };
+  const body = (await req.json().catch(() => ({}))) as { content?: string; cwd?: string };
   if (typeof body.content !== "string") {
     return NextResponse.json({ error: "content required" }, { status: 400 });
   }
-  const plan = await writePlan(id, body.content);
+  const plan = await writePlan(id, body.content, body.cwd);
   return NextResponse.json({ plan });
 }
 

@@ -54,15 +54,15 @@ Plans are stored as plain markdown at `~/.ultra-beers/plans/<id>.md`. Open them 
 If you don't want the web UI, pipe a plan to the included shell script. It posts to the running server and streams colored agent output to your terminal — visually distinct from cloud `/ultraplan`'s orange theme (ultra-beers uses cyan + magenta + green).
 
 ```bash
-# from a heredoc
-./bin/ub-refine.sh <<'PLAN'
+# from a heredoc, pointing the agents at your repo
+./bin/ub-refine.sh --cwd ~/Projects/your-repo <<'PLAN'
 # My plan
 1. Add Clerk auth
 2. Deploy to Vercel
 PLAN
 
 # from a file
-./bin/ub-refine.sh < plan.md
+./bin/ub-refine.sh --cwd . < plan.md
 
 # as an argument
 ./bin/ub-refine.sh "Quick plan: do X then Y"
@@ -95,7 +95,7 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 | | cloud `/ultraplan` | ultra-beers |
 |---|---|---|
 | **Where it runs** | claude.ai sandbox, repo uploaded | localhost, no upload |
-| **Repo context** | Full repo cloned in | Subprocesses inherit ultra-beers' cwd — your project isn't auto-loaded |
+| **Repo context** | Full repo cloned in | Per-plan `cwd` — agents grep your actual repo, no upload |
 | **Shape of output** | One refined plan, ready to paste back | Three separate critiques, you merge |
 | **Iteration** | Conversational back-and-forth | One-shot per click |
 | **Token streaming** | Per-token | Chunked (Claude CLI limitation) |
@@ -105,11 +105,25 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Per-plan working directory
+
+Each plan has an `agent cwd` field at the top of the workspace (or pass `--cwd` to the CLI). The three Claude subprocesses are spawned with that cwd, so the Verifier can `grep` and `ls` your actual repo when fact-checking the plan. The value is persisted in the plan's markdown frontmatter:
+
+```markdown
+---
+cwd: /Users/you/Projects/your-repo
+---
+
+# Your plan title
+...
+```
+
+`~/foo` is expanded, relative paths resolve against the server's cwd, and the API returns `400` if the directory doesn't exist.
+
 ## Roadmap
 
 Ideas, not promises:
 
-- Per-plan working directory (so Verifier greps the right repo, not ultra-beers itself)
 - Apply-this-suggestion button that inserts an agent's output into the plan
 - Pluggable agent roster + custom roles
 - Diff view between plan revisions

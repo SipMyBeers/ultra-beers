@@ -55,6 +55,7 @@ export function spawnAgent(
   plan: string,
   onEvent: (e: AgentEvent) => void,
   signal: AbortSignal,
+  options?: { cwd?: string },
 ): Promise<void> {
   return new Promise((resolve) => {
     const prompt = ROLE_PROMPTS[role].replace("{{PLAN}}", plan);
@@ -65,6 +66,7 @@ export function spawnAgent(
       {
         stdio: ["ignore", "pipe", "pipe"],
         env: { ...process.env },
+        cwd: options?.cwd,
       },
     );
 

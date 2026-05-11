@@ -1,5 +1,6 @@
 import { ROLES, type AgentEvent, type AgentRole } from "@/lib/agent-types";
 import { spawnAgent } from "@/lib/agents";
+import { expandCwd, validateCwd } from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     plan?: string;
     roles?: AgentRole[];
+    cwd?: string;
   };
   const plan = typeof body.plan === "string" ? body.plan : "";
   const roles = Array.isArray(body.roles) && body.roles.length > 0 ? body.roles : ROLES;
@@ -17,6 +19,20 @@ export async function POST(req: Request) {
       status: 400,
       headers: { "content-type": "application/json" },
     });
+  }
+
+  let resolvedCwd: string | undefined;
+  if (body.cwd) {
+    resolvedCwd = expandCwd(body.cwd);
+    if (resolvedCwd) {
+      const check = await validateCwd(resolvedCwd);
+      if (!check.ok) {
+        return new Response(
+          JSON.stringify({ error: `cwd ${check.reason}: ${resolvedCwd}` }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        );
+      }
+    }
   }
 
   const encoder = new TextEncoder();
@@ -30,15 +46,23 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(line));
       };
 
+      if (resolvedCwd) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: "cwd", cwd: resolvedCwd })}\n\n`),
+        );
+      }
+
       await Promise.all(
         roles.map((role) =>
-          spawnAgent(role, plan, send, abort.signal).catch((err: unknown) => {
-            send({
-              type: "error",
-              role,
-              message: err instanceof Error ? err.message : String(err),
-            });
-          }),
+          spawnAgent(role, plan, send, abort.signal, { cwd: resolvedCwd }).catch(
+            (err: unknown) => {
+              send({
+                type: "error",
+                role,
+                message: err instanceof Error ? err.message : String(err),
+              });
+            },
+          ),
         ),
       );
 

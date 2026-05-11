@@ -8,33 +8,43 @@ import remarkGfm from "remark-gfm";
 import { RefinementPanel, type RoleState } from "./RefinementPanel";
 import { ROLES, type AgentRole } from "@/lib/agent-types";
 
-type Plan = { id: string; title: string; content: string; updatedAt: number };
+type Plan = {
+  id: string;
+  title: string;
+  content: string;
+  cwd?: string;
+  updatedAt: number;
+};
 type ViewMode = "edit" | "preview" | "split";
 
 export function PlanWorkspace({ initialPlan }: { initialPlan: Plan }) {
   const router = useRouter();
   const [content, setContent] = useState(initialPlan.content);
+  const [cwd, setCwd] = useState(initialPlan.cwd ?? "");
   const [savedContent, setSavedContent] = useState(initialPlan.content);
+  const [savedCwd, setSavedCwd] = useState(initialPlan.cwd ?? "");
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<ViewMode>("split");
   const [roles, setRoles] = useState<Record<AgentRole, RoleState>>(() => emptyRoles());
   const [refining, setRefining] = useState(false);
+  const [resolvedCwd, setResolvedCwd] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const dirty = content !== savedContent;
+  const dirty = content !== savedContent || cwd !== savedCwd;
   const title = useMemo(() => deriveTitle(content), [content]);
 
   const save = useCallback(
-    async (next: string) => {
+    async (nextContent: string, nextCwd: string) => {
       setSaving(true);
       try {
         await fetch(`/api/plans/${initialPlan.id}`, {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ content: next }),
+          body: JSON.stringify({ content: nextContent, cwd: nextCwd }),
         });
-        setSavedContent(next);
+        setSavedContent(nextContent);
+        setSavedCwd(nextCwd);
       } finally {
         setSaving(false);
       }
@@ -46,12 +56,12 @@ export function PlanWorkspace({ initialPlan }: { initialPlan: Plan }) {
     if (!dirty) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      save(content);
+      save(content, cwd);
     }, 800);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [content, dirty, save]);
+  }, [content, cwd, dirty, save]);
 
   const refine = async () => {
     if (refining) {
@@ -59,6 +69,7 @@ export function PlanWorkspace({ initialPlan }: { initialPlan: Plan }) {
       return;
     }
     setRoles(emptyRoles());
+    setResolvedCwd(null);
     setRefining(true);
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -67,7 +78,7 @@ export function PlanWorkspace({ initialPlan }: { initialPlan: Plan }) {
       const res = await fetch("/api/refine", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan: content }),
+        body: JSON.stringify({ plan: content, cwd: cwd || undefined }),
         signal: ctrl.signal,
       });
 
@@ -96,10 +107,15 @@ export function PlanWorkspace({ initialPlan }: { initialPlan: Plan }) {
           if (payload === "[DONE]") continue;
           try {
             const parsed = JSON.parse(payload) as
+              | { type: "cwd"; cwd: string }
               | { type: "start"; role: AgentRole }
               | { type: "delta"; role: AgentRole; text: string }
               | { type: "done"; role: AgentRole; exitCode: number }
               | { type: "error"; role: AgentRole; message: string };
+            if (parsed.type === "cwd") {
+              setResolvedCwd(parsed.cwd);
+              continue;
+            }
             setRoles((prev) => applyEvent(prev, parsed));
           } catch {
             // skip malformed events
@@ -108,7 +124,6 @@ export function PlanWorkspace({ initialPlan }: { initialPlan: Plan }) {
       }
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
-        // surface unexpected errors on skeptic lane
         setRoles((prev) => ({
           ...prev,
           skeptic: {
@@ -208,6 +223,40 @@ export function PlanWorkspace({ initialPlan }: { initialPlan: Plan }) {
           </button>
         </div>
       </header>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 20px",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--bg)",
+          fontSize: 12,
+        }}
+      >
+        <label htmlFor="cwd" style={{ color: "var(--fg-dim)", whiteSpace: "nowrap" }}>
+          agent cwd:
+        </label>
+        <input
+          id="cwd"
+          type="text"
+          placeholder="/Users/you/Projects/your-repo  (so Verifier greps the right tree)"
+          value={cwd}
+          onChange={(e) => setCwd(e.target.value)}
+          spellCheck={false}
+          style={{
+            flex: 1,
+            fontSize: 12,
+            padding: "4px 8px",
+          }}
+        />
+        {resolvedCwd && (
+          <span style={{ color: "var(--fg-faint)", fontSize: 11 }}>
+            resolved → {resolvedCwd}
+          </span>
+        )}
+      </div>
 
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         <section

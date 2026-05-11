@@ -6,6 +6,7 @@ export type Plan = {
   id: string;
   title: string;
   content: string;
+  cwd?: string;
   updatedAt: number;
 };
 
@@ -19,11 +20,61 @@ function planPath(id: string) {
   return path.join(ROOT, `${id}.md`);
 }
 
-function parsePlan(id: string, raw: string, mtimeMs: number): Plan {
+const FM_FENCE = "---";
+
+function parseFrontmatter(raw: string): { fm: Record<string, string>; body: string } {
+  if (!raw.startsWith(FM_FENCE + "\n") && !raw.startsWith(FM_FENCE + "\r\n")) {
+    return { fm: {}, body: raw };
+  }
   const lines = raw.split("\n");
-  const firstHeading = lines.find((l) => l.startsWith("# "));
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim() === FM_FENCE) {
+      end = i;
+      break;
+    }
+  }
+  if (end < 0) return { fm: {}, body: raw };
+
+  const fm: Record<string, string> = {};
+  for (let i = 1; i < end; i++) {
+    const line = lines[i];
+    const m = line.match(/^([a-zA-Z][a-zA-Z0-9_-]*):\s*(.*)$/);
+    if (!m) continue;
+    let value = m[2].trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    fm[m[1]] = value;
+  }
+  const bodyLines = lines.slice(end + 1);
+  if (bodyLines.length > 0 && bodyLines[0] === "") bodyLines.shift();
+  return { fm, body: bodyLines.join("\n") };
+}
+
+function serialize(fm: Record<string, string | undefined>, body: string): string {
+  const entries = Object.entries(fm).filter(
+    ([, v]) => typeof v === "string" && v.length > 0,
+  ) as Array<[string, string]>;
+  if (entries.length === 0) return body;
+  const fmLines = entries.map(([k, v]) => `${k}: ${quoteIfNeeded(v)}`);
+  return `${FM_FENCE}\n${fmLines.join("\n")}\n${FM_FENCE}\n\n${body.replace(/^\n+/, "")}`;
+}
+
+function quoteIfNeeded(v: string): string {
+  if (/[#:>|&*!%@`{}[\],?]/.test(v) || /^\s|\s$/.test(v)) return JSON.stringify(v);
+  return v;
+}
+
+function parsePlan(id: string, raw: string, mtimeMs: number): Plan {
+  const { fm, body } = parseFrontmatter(raw);
+  const firstHeading = body.split("\n").find((l) => l.startsWith("# "));
   const title = firstHeading ? firstHeading.slice(2).trim() : "Untitled";
-  return { id, title, content: raw, updatedAt: mtimeMs };
+  const cwd = fm.cwd && fm.cwd.length > 0 ? fm.cwd : undefined;
+  return { id, title, content: body, cwd, updatedAt: mtimeMs };
 }
 
 export async function listPlans(): Promise<Plan[]> {
@@ -45,23 +96,25 @@ export async function readPlan(id: string): Promise<Plan | null> {
   if (!/^[a-z0-9-]+$/i.test(id)) return null;
   try {
     const fp = planPath(id);
-    const [raw, stat] = await Promise.all([
-      fs.readFile(fp, "utf8"),
-      fs.stat(fp),
-    ]);
+    const [raw, stat] = await Promise.all([fs.readFile(fp, "utf8"), fs.stat(fp)]);
     return parsePlan(id, raw, stat.mtimeMs);
   } catch {
     return null;
   }
 }
 
-export async function writePlan(id: string, content: string): Promise<Plan> {
+export async function writePlan(
+  id: string,
+  content: string,
+  cwd?: string,
+): Promise<Plan> {
   await ensureRoot();
   if (!/^[a-z0-9-]+$/i.test(id)) throw new Error("invalid plan id");
   const fp = planPath(id);
-  await fs.writeFile(fp, content, "utf8");
+  const raw = serialize({ cwd: cwd?.trim() || undefined }, content);
+  await fs.writeFile(fp, raw, "utf8");
   const stat = await fs.stat(fp);
-  return parsePlan(id, content, stat.mtimeMs);
+  return parsePlan(id, raw, stat.mtimeMs);
 }
 
 export async function deletePlan(id: string): Promise<void> {
@@ -83,4 +136,27 @@ export function newPlanId(): string {
   ).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
   const rand = Math.random().toString(36).slice(2, 6);
   return `${stamp}-${rand}`;
+}
+
+export function expandCwd(cwd: string | undefined | null): string | undefined {
+  if (!cwd) return undefined;
+  const trimmed = cwd.trim();
+  if (!trimmed) return undefined;
+  if (trimmed === "~") return os.homedir();
+  if (trimmed.startsWith("~/")) return path.join(os.homedir(), trimmed.slice(2));
+  if (path.isAbsolute(trimmed)) return trimmed;
+  return path.resolve(trimmed);
+}
+
+export async function validateCwd(cwd: string): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    const stat = await fs.stat(cwd);
+    if (!stat.isDirectory()) return { ok: false, reason: "not a directory" };
+    return { ok: true };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return { ok: false, reason: "does not exist" };
+    if (code === "EACCES") return { ok: false, reason: "permission denied" };
+    return { ok: false, reason: (err as Error).message };
+  }
 }
