@@ -1,6 +1,8 @@
 # ultra-beers
 
-**Open-source local plan refinement.** Like `/ultraplan`, but it runs on your machine and dispatches to local Claude Code agents instead of a cloud sandbox.
+**Open-source local plan refinement + decision queue + colony dashboard.** Like `/ultraplan`, but it runs on your machine and dispatches to local Claude Code agents instead of a cloud sandbox.
+
+> **Quickstart:** see [SETUP.md](SETUP.md). **Multi-session colony with claude-peers:** see [COLONY.md](COLONY.md). **REST/SSE/MCP integration for your agents and RAG pipelines:** see [INTEGRATIONS.md](INTEGRATIONS.md). **Contributing with an AI agent:** see [AGENTS.md](AGENTS.md).
 
 You write a plan in the editor. You click **refine**. Three local Claude agents — `Skeptic`, `Verifier`, `Tightener` — run in parallel against the plan and stream their critiques back. You merge the good ideas into your plan. Ship.
 

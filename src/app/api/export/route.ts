@@ -17,9 +17,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const includeParam = url.searchParams.get("include");
+  const sinceParam = url.searchParams.get("since");
   const include = includeParam
     ? new Set(includeParam.split(",").map((s) => s.trim().toLowerCase()))
     : new Set(["plans", "decisions", "peers", "inbox"]);
+  const sinceMs = sinceParam ? Number(sinceParam) : 0;
+  const since = Number.isFinite(sinceMs) && sinceMs > 0 ? sinceMs : 0;
 
   const encoder = new TextEncoder();
 
@@ -33,6 +36,7 @@ export async function GET(req: Request) {
       try {
         if (include.has("plans")) {
           for (const plan of await listPlans()) {
+            if (since && plan.updatedAt <= since) continue;
             writeLine("plan", {
               id: plan.id,
               title: plan.title,
@@ -45,6 +49,12 @@ export async function GET(req: Request) {
 
         if (include.has("decisions")) {
           for (const decision of await listDecisions()) {
+            if (
+              since &&
+              (decision.decidedAt ?? decision.createdAt) <= since
+            ) {
+              continue;
+            }
             writeLine("decision", {
               id: decision.id,
               title: decision.title,

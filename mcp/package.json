@@ -1,0 +1,20 @@
+{
+  "name": "ultra-beers-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing ultra-beers (localhost:4747) plans, decisions, inbox, repos, and peers as tools to any Claude Code session.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "ultra-beers-mcp": "index.mjs"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

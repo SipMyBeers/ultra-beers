@@ -38,6 +38,21 @@ curl -s "http://localhost:4747/api/export?include=plans,decisions"
 
 Supported `include` values: `plans`, `decisions`, `peers`, `inbox`. Default is all four.
 
+### Incremental sync — `?since=<ms>`
+
+Pass a millisecond unix timestamp to get only records updated since that time. Useful for cron-style RAG pipelines that need deltas, not full snapshots.
+
+```bash
+# Initial snapshot, save the wall-clock timestamp
+NOW=$(node -e 'process.stdout.write(String(Date.now()))')
+curl -s http://localhost:4747/api/export > snapshot.ndjson
+
+# An hour later, only fetch changes since then
+curl -s "http://localhost:4747/api/export?since=$NOW" > delta.ndjson
+```
+
+Filtering is applied to `plans` (by `updatedAt`) and `decisions` (by `decidedAt` if set, else `createdAt`). `peers` and `inbox` are always full snapshots — they're regenerated on every request and there's no canonical "last modified" timestamp on the items themselves.
+
 ## Live stream — `GET /api/inbox/stream`
 
 Server-Sent Events. Re-scans the active repo set every 30 seconds and emits:
@@ -172,6 +187,75 @@ The source-of-truth types live in `src/lib/*.ts`:
 - `VaultEntry` → `src/lib/vault.ts`
 
 For non-TS consumers, the JSON responses are stable — copy a sample and use it as a schema.
+
+## Integrating with existing Claude Code skills
+
+If you already have skills under `~/.claude/skills/<skill-name>/SKILL.md`, you can make them ultra-beers-aware without rewriting them. ultra-beers is just localhost HTTP.
+
+### Pattern 1 — skill reads project state before acting
+
+Add a single bash step at the top of the skill body:
+
+```markdown
+1. Pull current context:
+   ```bash
+   curl -s http://localhost:4747/api/repos/<repo-id> | jq '.overview'
+   curl -s http://localhost:4747/api/inbox | jq '.items[] | select(.repoId=="<repo-id>")'
+   ```
+2. Use the returned roadmap / decision points to inform the next steps.
+```
+
+This works for any skill that does scoped repo work — code review, audit, refactor, release-prep. The skill now sees what's pending in ultra-beers' view of the project, not just the current diff.
+
+### Pattern 2 — skill records its outcome as a decision or plan
+
+When a skill finishes a stage that needed a human call, record it so the state survives the session:
+
+```bash
+curl -s -X POST http://localhost:4747/api/decisions \
+  -H "content-type: application/json" \
+  -d '{
+    "title": "Reviewed PR #42",
+    "context": "Skeptic flagged X and Y. Verifier confirmed Z exists.",
+    "options": [
+      {"id":"approve","label":"Approve and merge"},
+      {"id":"changes","label":"Request changes"},
+      {"id":"close","label":"Close — won'\''t do"}
+    ]
+  }'
+```
+
+Now the user can land on `/decisions`, see your skill's output as a card, and click their call.
+
+### Pattern 3 — skill subscribes to the live inbox
+
+For a skill that babysits a long-running process:
+
+```bash
+# in the skill body, run in background or in a loop
+curl -sN http://localhost:4747/api/inbox/stream | while IFS= read -r line; do
+  case "$line" in
+    "event: delta"*) echo "new decision points detected" ;;
+  esac
+done
+```
+
+When the user adds a `## Decision:` heading to a project's ROADMAP, your skill picks it up via the SSE stream and can react (post a message, ping a peer, etc.).
+
+### Pattern 4 — skill consumes the NDJSON export for context
+
+For RAG-flavored skills:
+
+```bash
+curl -s http://localhost:4747/api/export?include=decisions,inbox > /tmp/ub-context.ndjson
+# feed into your skill's prompt-builder, embedder, or grep pipeline
+```
+
+The export is type-tagged, stable across versions, and works without any SDK.
+
+### Wrapping a skill as an MCP tool
+
+If your skill is already wrapped as an MCP tool, ultra-beers' MCP server (see [`mcp/`](mcp/)) gives you a parallel tool surface for plans/decisions/inbox without rewriting either. They compose — your skill keeps doing its job, the ultra-beers MCP keeps state.
 
 ## CORS
 
