@@ -122,6 +122,19 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Repo deep-dive (v0.8)
+
+Click any repo on the `/repos` list and you land on `/repos/<id>` — a per-project dashboard that pulls together:
+
+- **Decisions to make** — auto-detected from `README.md`, `ROADMAP.md`, `TODO.md`, etc.: headings starting with `Decision:` or ending in `?`, task items containing "decide" or `TBD`, and inline `TODO/FIXME` markers. Each one gets a one-click **decide** and **plan** button that pre-fills the rest of ultra-beers with the surrounding context.
+- **Roadmap + README** — rendered markdown in-place.
+- **Recent commits** — last 10 with sha, subject, age.
+- **Uncommitted files** — porcelain status, capped at 30.
+- **Open GitHub issues** — same `gh` flow as the list view, with plan/decide buttons.
+- **Linked vault notes** — any markdown file in your configured Obsidian vaults whose path contains the repo name (case-insensitive). Click through opens the vault browser at that file.
+
+The deep-dive is the unified "what's the state of this project, and what calls do I need to make next" page.
+
 ## Repo browser (v0.7)
 
 A `/repos` tab that auto-detects local git repos and surfaces their open GitHub issues via the `gh` CLI. Each issue gets a **plan** and **decide** button that pre-fills the existing ultra-beers UIs with the issue body as context.

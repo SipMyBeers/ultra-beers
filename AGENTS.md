@@ -107,6 +107,22 @@ See `src/themes/minimal.css` for the full pattern.
 - **Never** add `!important`. If you need it, your selector is wrong.
 - **Never** ship without testing all three pages above. Theme bugs love to hide on inner routes.
 
+## Extending decision-point detection
+
+Decision points in `README.md`/`ROADMAP.md` are heuristically detected by `detectDecisionPoints()` in `src/lib/repos.ts`. The current rules:
+
+- `## Decision: …` and similar level-2/3/4 headings.
+- Headings ending with `?`.
+- Headings containing `TBD`, `TODO`, `open question`, `unknown`, `undecided`.
+- Unchecked task items containing `decide`, `?`, `TBD`.
+- Inline `TODO/TBD/FIXME/XXX` markers outside code blocks.
+
+To add a new pattern, append to this function. Keep the heuristics conservative — false positives are noise; the cost of a missed decision is a user-typed entry, not a crash. Always dedupe by lowercase text and cap at 25 items.
+
+To support a new roadmap filename, add it to `ROADMAP_CANDIDATES` in `src/lib/repos.ts`. Don't widen this to non-markdown files.
+
+To support a new vault-link strategy beyond substring-of-filename, change `findLinkedVaultNotes()`. Keep it cheap (max 5 levels deep, capped at 20 results) — this runs on every deep-dive page load.
+
 ## Extending the repo browser
 
 The `/repos` tab is backed by `src/lib/repos.ts`, which scans `repoRoots` from `~/.ultra-beers/config.json` for git directories and shells out to `git` and `gh` for metadata and issues. Notes for extending:

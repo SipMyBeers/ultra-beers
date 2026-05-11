@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TopNav } from "./TopNav";
 
@@ -130,68 +131,89 @@ function RepoCard({
 }) {
   return (
     <div className="pixel-card flat" style={{ padding: 0, overflow: "hidden" }}>
-      <button
-        onClick={onToggle}
+      <div
         style={{
-          width: "100%",
-          textAlign: "left",
-          background: "transparent",
-          border: "none",
-          boxShadow: "none",
-          padding: "12px 16px",
           display: "flex",
           alignItems: "center",
-          gap: 12,
-          color: "var(--fg)",
-          fontSize: 13,
-          letterSpacing: 0,
-          textTransform: "none",
-          fontFamily: "var(--font-body)",
-          fontWeight: 600,
+          gap: 0,
+          padding: 0,
         }}
       >
-        <span style={{ fontSize: 11, color: "var(--fg-faint)" }}>
+        <button
+          onClick={onToggle}
+          aria-label={expanded ? "collapse" : "expand"}
+          title={expanded ? "hide issues" : "load issues"}
+          style={{
+            background: "transparent",
+            border: "none",
+            boxShadow: "none",
+            padding: "12px 8px 12px 14px",
+            fontSize: 11,
+            color: "var(--fg-faint)",
+            letterSpacing: 0,
+          }}
+        >
           {expanded ? "▾" : "▸"}
-        </span>
-        <span style={{ flex: 1 }}>{repo.name}</span>
-        {repo.slug && (
-          <span
-            className="tag"
-            style={{ fontFamily: "var(--font-mono)", textTransform: "none", letterSpacing: 0 }}
-          >
-            {repo.slug}
-          </span>
-        )}
-        {repo.currentBranch && (
-          <span
-            style={{
-              fontSize: 10,
-              fontFamily: "var(--font-mono)",
-              color: "var(--cyan)",
-            }}
-          >
-            {repo.currentBranch}
-          </span>
-        )}
-        {repo.dirty && (
-          <span
-            className="status-dot error"
-            style={{ marginRight: 0 }}
-            title="uncommitted changes"
-          />
-        )}
-        {repo.lastCommit && (
-          <span
-            style={{ fontSize: 10, color: "var(--fg-faint)", fontFamily: "var(--font-mono)" }}
-            title={`${repo.lastCommit.sha} · ${repo.lastCommit.subject}`}
-          >
-            {relTime(repo.lastCommit.ageSeconds)}
-          </span>
-        )}
-      </button>
-      {expanded && (
-        <IssuesList repo={repo} state={issuesState} />
-      )}
+        </button>
+        <Link
+          href={`/repos/${encodeURIComponent(repo.id)}`}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            color: "var(--fg)",
+            fontSize: 13,
+            padding: "12px 16px 12px 0",
+            textShadow: "none",
+          }}
+        >
+          <span style={{ flex: 1, fontWeight: 600 }}>{repo.name}</span>
+          {repo.slug && (
+            <span
+              className="tag"
+              style={{
+                fontFamily: "var(--font-mono)",
+                textTransform: "none",
+                letterSpacing: 0,
+              }}
+            >
+              {repo.slug}
+            </span>
+          )}
+          {repo.currentBranch && (
+            <span
+              style={{
+                fontSize: 10,
+                fontFamily: "var(--font-mono)",
+                color: "var(--cyan)",
+              }}
+            >
+              {repo.currentBranch}
+            </span>
+          )}
+          {repo.dirty && (
+            <span
+              className="status-dot error"
+              style={{ marginRight: 0 }}
+              title="uncommitted changes"
+            />
+          )}
+          {repo.lastCommit && (
+            <span
+              style={{
+                fontSize: 10,
+                color: "var(--fg-faint)",
+                fontFamily: "var(--font-mono)",
+              }}
+              title={`${repo.lastCommit.sha} · ${repo.lastCommit.subject}`}
+            >
+              {relTime(repo.lastCommit.ageSeconds)}
+            </span>
+          )}
+        </Link>
+      </div>
+      {expanded && <IssuesList repo={repo} state={issuesState} />}
     </div>
   );
 }

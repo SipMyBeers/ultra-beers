@@ -157,6 +157,252 @@ async function gitDirty(cwd: string): Promise<boolean> {
   return out.length > 0;
 }
 
+export type DecisionPoint = {
+  source: "README" | "ROADMAP" | "TODO" | "PLAN" | "CHANGELOG";
+  type: "heading" | "task" | "marker";
+  text: string;
+  context: string;
+  lineNumber: number;
+};
+
+export type RepoOverview = {
+  repo: Repo;
+  recentCommits: Array<{ sha: string; subject: string; author: string; ageSeconds: number }>;
+  dirtyFiles: string[];
+  readme: { name: string; content: string } | null;
+  roadmap: { name: string; content: string } | null;
+  decisionPoints: DecisionPoint[];
+  linkedVaultNotes: Array<{ vaultId: string; vaultLabel: string; path: string }>;
+};
+
+const ROADMAP_CANDIDATES = ["ROADMAP.md", "ROADMAP.markdown", "TODO.md", "PLAN.md", "TASKS.md"];
+const README_CANDIDATES = ["README.md", "README.markdown", "readme.md", "Readme.md"];
+
+export async function getRepoOverview(id: string): Promise<RepoOverview | null> {
+  if (!isValidRepoId(id)) return null;
+  const repos = await listRepos();
+  const repo = repos.find((r) => r.id === id);
+  if (!repo) return null;
+
+  const [recentCommits, dirtyFiles, readme, roadmap, linkedVaultNotes] = await Promise.all([
+    gitRecentCommits(repo.path, 10),
+    gitDirtyFiles(repo.path),
+    findFirstFile(repo.path, README_CANDIDATES),
+    findFirstFile(repo.path, ROADMAP_CANDIDATES),
+    findLinkedVaultNotes(repo.name),
+  ]);
+
+  const decisionPoints: DecisionPoint[] = [];
+  if (readme) decisionPoints.push(...detectDecisionPoints(readme.content, "README"));
+  if (roadmap) {
+    const src = mapRoadmapSource(roadmap.name);
+    decisionPoints.push(...detectDecisionPoints(roadmap.content, src));
+  }
+
+  return {
+    repo,
+    recentCommits,
+    dirtyFiles,
+    readme,
+    roadmap,
+    decisionPoints,
+    linkedVaultNotes,
+  };
+}
+
+function mapRoadmapSource(filename: string): DecisionPoint["source"] {
+  const upper = filename.toUpperCase();
+  if (upper.startsWith("TODO")) return "TODO";
+  if (upper.startsWith("PLAN")) return "PLAN";
+  if (upper.startsWith("CHANGELOG")) return "CHANGELOG";
+  return "ROADMAP";
+}
+
+async function findFirstFile(
+  repoPath: string,
+  names: string[],
+): Promise<{ name: string; content: string } | null> {
+  for (const n of names) {
+    const full = path.join(repoPath, n);
+    try {
+      const content = await fs.readFile(full, "utf8");
+      return { name: n, content };
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
+async function gitRecentCommits(
+  cwd: string,
+  n: number,
+): Promise<RepoOverview["recentCommits"]> {
+  const out = await gitOutput(
+    ["log", `-n${n}`, "--pretty=format:%H%x00%s%x00%an%x00%ct"],
+    cwd,
+  );
+  if (!out) return [];
+  const now = Math.floor(Date.now() / 1000);
+  return out
+    .split("\n")
+    .map((line) => {
+      const [sha, subject, author, ctStr] = line.split("\x00");
+      const ct = Number(ctStr);
+      if (!sha || Number.isNaN(ct)) return null;
+      return {
+        sha: sha.slice(0, 7),
+        subject: subject ?? "",
+        author: author ?? "",
+        ageSeconds: Math.max(0, now - ct),
+      };
+    })
+    .filter(Boolean) as RepoOverview["recentCommits"];
+}
+
+async function gitDirtyFiles(cwd: string): Promise<string[]> {
+  const out = await gitOutput(["status", "--porcelain"], cwd);
+  if (!out) return [];
+  return out
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+}
+
+async function findLinkedVaultNotes(
+  repoName: string,
+): Promise<Array<{ vaultId: string; vaultLabel: string; path: string }>> {
+  const { readConfig } = await import("./config");
+  const { scanVault } = await import("./vault");
+  const config = await readConfig();
+  const out: Array<{ vaultId: string; vaultLabel: string; path: string }> = [];
+  const needle = repoName.toLowerCase();
+  for (const vault of config.vaults) {
+    try {
+      const entries = await scanVault(vault.path, 5);
+      for (const entry of flattenEntries(entries)) {
+        if (entry.path.toLowerCase().includes(needle)) {
+          out.push({ vaultId: vault.id, vaultLabel: vault.label, path: entry.path });
+          if (out.length >= 20) return out;
+        }
+      }
+    } catch {
+      // ignore vault read errors
+    }
+  }
+  return out;
+}
+
+function flattenEntries(
+  entries: Array<{ name: string; path: string; type: "file" | "dir"; children?: unknown[] }>,
+): Array<{ path: string; name: string }> {
+  const out: Array<{ path: string; name: string }> = [];
+  const walk = (es: typeof entries) => {
+    for (const e of es) {
+      if (e.type === "file") out.push({ path: e.path, name: e.name });
+      if (e.type === "dir" && Array.isArray(e.children)) {
+        walk(e.children as typeof entries);
+      }
+    }
+  };
+  walk(entries);
+  return out;
+}
+
+function detectDecisionPoints(
+  content: string,
+  source: DecisionPoint["source"],
+): DecisionPoint[] {
+  const lines = content.split("\n");
+  const points: DecisionPoint[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Headings beginning with "decision" or ending with "?"
+    const headingMatch = trimmed.match(/^(#{2,4})\s+(.+)$/);
+    if (headingMatch) {
+      const text = headingMatch[2].trim();
+      const lc = text.toLowerCase();
+      const looksLikeDecision =
+        lc.startsWith("decision:") ||
+        lc.includes("decide ") ||
+        lc.endsWith("?") ||
+        /\b(tbd|todo|open question|unknown|undecided)\b/i.test(text);
+      if (looksLikeDecision) {
+        points.push({
+          source,
+          type: "heading",
+          text,
+          context: captureContext(lines, i, headingMatch[1].length),
+          lineNumber: i + 1,
+        });
+        continue;
+      }
+    }
+
+    // Unchecked task items with decision-y keywords
+    const taskMatch = trimmed.match(/^[-*+]\s+\[\s\]\s+(.+)$/);
+    if (taskMatch) {
+      const text = taskMatch[1].trim();
+      const lc = text.toLowerCase();
+      if (
+        lc.includes("decide") ||
+        lc.endsWith("?") ||
+        /\b(tbd|tba|undecided)\b/i.test(text)
+      ) {
+        points.push({
+          source,
+          type: "task",
+          text,
+          context: text,
+          lineNumber: i + 1,
+        });
+      }
+      continue;
+    }
+
+    // Inline markers
+    if (/\b(TBD|TODO|FIXME|XXX)\b:?/.test(trimmed) && !trimmed.startsWith("#")) {
+      const m = trimmed.match(/(TBD|TODO|FIXME|XXX):?\s*(.+)/i);
+      if (m && m[2] && m[2].length > 4) {
+        points.push({
+          source,
+          type: "marker",
+          text: m[2].slice(0, 200),
+          context: m[2].slice(0, 400),
+          lineNumber: i + 1,
+        });
+      }
+    }
+  }
+
+  // Dedupe by text after lowercase + trim, cap at 25
+  const seen = new Set<string>();
+  return points
+    .filter((p) => {
+      const k = p.text.toLowerCase().trim();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .slice(0, 25);
+}
+
+function captureContext(lines: string[], startIdx: number, headingLevel: number): string {
+  const headingMarker = "#".repeat(headingLevel);
+  const out: string[] = [];
+  for (let i = startIdx + 1; i < lines.length && out.length < 8; i++) {
+    const line = lines[i];
+    if (/^#{1,6}\s/.test(line.trim()) && line.trim().startsWith(headingMarker)) break;
+    if (/^#{1,6}\s/.test(line.trim()) && line.trim().length <= headingMarker.length + 1) break;
+    out.push(line);
+  }
+  return out.join("\n").trim();
+}
+
 export async function getRepoIssues(id: string): Promise<RepoIssue[] | null> {
   if (!isValidRepoId(id)) return null;
   const repos = await listRepos();
