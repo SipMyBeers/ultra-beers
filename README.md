@@ -118,6 +118,16 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Themes (v0.5)
+
+Three bundled themes, switchable from the picker in the top-right of the nav bar:
+
+- **pixel** (default) — deep purple PICO-8 palette, Press Start 2P, neon accents, CRT scanlines
+- **minimal** — light, system fonts, single blue accent (the "I have to use this at work" theme)
+- **terminal** — green-on-black, VT323 everywhere, amber highlights
+
+Choice persists to `localStorage` and is applied before paint (no flash). Write your own — every theme is a single CSS file with a `[data-theme="<id>"]` selector. See [THEMES.md](THEMES.md) for the variable contract.
+
 ## Decisions queue (v0.3)
 
 A second surface for rapid-fire decisions: <http://localhost:4747/decisions>. Each card has a question, optional context, and 2–4 buttons. Click an option → it's recorded and the queue advances to the next pending decision. Add new ones via the API:

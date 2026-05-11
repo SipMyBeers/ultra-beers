@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 export function TopNav({ active }: { active: "plans" | "decisions" }) {
   return (
@@ -25,6 +26,7 @@ export function TopNav({ active }: { active: "plans" | "decisions" }) {
       >
         decisions
       </Link>
+      <ThemeSwitcher />
     </nav>
   );
 }

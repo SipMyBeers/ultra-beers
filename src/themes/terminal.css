@@ -1,0 +1,165 @@
+/* ─── theme: terminal ─────────────────────────────────────── */
+/* Green-on-black CRT. VT323 everywhere. Faint scanlines. */
+
+[data-theme="terminal"] {
+  --bg: #050808;
+  --bg-elev: #0a1010;
+  --bg-elev-2: #0f1a14;
+  --border: #1a3320;
+  --border-strong: #2a5530;
+  --fg: #00ff66;
+  --fg-dim: #00b34a;
+  --fg-faint: #007530;
+
+  --accent: #ffaa00;
+  --accent-dim: #b87c00;
+  --magenta: #ff66cc;
+  --cyan: #00ddff;
+  --lime: #00ff66;
+  --red: #ff3344;
+  --orange: #ff8800;
+
+  --skeptic: #ff3344;
+  --verifier: #00ddff;
+  --tightener: #00ff66;
+
+  --peer-1: #ff66cc;
+  --peer-2: #00ddff;
+  --peer-3: #00ff66;
+  --peer-4: #ffaa00;
+  --peer-5: #ff8800;
+  --peer-6: #ff3344;
+
+  --font-heading: var(--font-crt), ui-monospace, monospace;
+  --font-body: var(--font-crt), ui-monospace, monospace;
+  --font-mono: var(--font-crt), ui-monospace, monospace;
+
+  --heading-transform: uppercase;
+  --heading-letterspacing: 1px;
+  --button-shadow: none;
+  --button-shadow-hover: 0 0 8px var(--lime);
+  --button-shadow-active: none;
+  --card-shadow: none;
+  --card-border-width: 1px;
+  --card-radius: 0;
+  --bg-gradient:
+    radial-gradient(ellipse at center, rgba(0, 255, 102, 0.04), transparent 70%);
+  --scanline-opacity: 0.5;
+}
+
+[data-theme="terminal"] body {
+  background: var(--bg-gradient), var(--bg);
+}
+
+[data-theme="terminal"] html, [data-theme="terminal"] body {
+  font-size: 16px;
+}
+
+[data-theme="terminal"] h1 { font-size: 22px; color: var(--accent); text-shadow: 0 0 8px rgba(255, 170, 0, 0.5); }
+[data-theme="terminal"] h2 { font-size: 18px; color: var(--lime); }
+[data-theme="terminal"] h3 { font-size: 16px; color: var(--cyan); }
+
+[data-theme="terminal"] textarea,
+[data-theme="terminal"] input {
+  font-family: var(--font-crt), ui-monospace, monospace;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--lime);
+  border-radius: 0;
+}
+
+[data-theme="terminal"] button {
+  background: var(--bg);
+  color: var(--lime);
+  border: 1px solid var(--lime);
+  font-family: var(--font-crt), ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 1px;
+  border-radius: 0;
+  text-transform: uppercase;
+  box-shadow: none;
+  padding: 6px 12px;
+}
+[data-theme="terminal"] button:hover {
+  background: rgba(0, 255, 102, 0.1);
+  color: var(--lime);
+  border-color: var(--lime);
+  box-shadow: 0 0 8px rgba(0, 255, 102, 0.5);
+}
+[data-theme="terminal"] button:active { transform: none; box-shadow: none; }
+[data-theme="terminal"] button.primary {
+  background: var(--lime);
+  color: var(--bg);
+  border-color: var(--lime);
+}
+[data-theme="terminal"] button.primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+[data-theme="terminal"] .pixel-card {
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  box-shadow: none;
+  border-radius: 0;
+}
+[data-theme="terminal"] .pixel-corner { display: none; }
+
+[data-theme="terminal"] .peer-chip {
+  font-family: var(--font-crt), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  border-radius: 0;
+  padding: 2px 8px;
+}
+
+[data-theme="terminal"] .nav-tab {
+  font-family: var(--font-crt), ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 1px;
+  padding: 4px 12px;
+}
+[data-theme="terminal"] .nav-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(255, 170, 0, 0.08);
+}
+
+[data-theme="terminal"] .logo {
+  font-family: var(--font-crt), ui-monospace, monospace;
+  font-size: 20px;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+}
+[data-theme="terminal"] .logo .dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+[data-theme="terminal"] .logo .beers { color: var(--lime); }
+
+[data-theme="terminal"] .markdown h1,
+[data-theme="terminal"] .markdown h2,
+[data-theme="terminal"] .markdown h3 { color: var(--accent); }
+[data-theme="terminal"] .markdown code { color: var(--accent); }
+[data-theme="terminal"] .markdown p,
+[data-theme="terminal"] .markdown li { color: var(--lime); }
+
+[data-theme="terminal"] a {
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(255, 170, 0, 0.4);
+}
+
+[data-theme="terminal"] .pixel-divider {
+  background: var(--border-strong);
+  height: 1px;
+}
+
+[data-theme="terminal"] .crt {
+  font-family: var(--font-crt), ui-monospace, monospace;
+  font-size: 18px;
+}
+
+[data-theme="terminal"] .tag {
+  font-family: var(--font-crt), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  border-radius: 0;
+}
