@@ -105,6 +105,26 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Decisions queue (v0.3)
+
+A second surface for rapid-fire decisions: <http://localhost:4747/decisions>. Each card has a question, optional context, and 2–4 buttons. Click an option → it's recorded and the queue advances to the next pending decision. Add new ones via the API:
+
+```bash
+curl -s -X POST http://localhost:4747/api/decisions \
+  -H "content-type: application/json" \
+  -d '{
+    "title": "Switch from Vercel to Cloudflare Pages?",
+    "context": "Vercel build minutes are up 4x this quarter…",
+    "options": [
+      {"id":"yes","label":"Yes — migrate this sprint"},
+      {"id":"no","label":"No — stick with Vercel"},
+      {"id":"hybrid","label":"Hybrid — static on CF, functions on Vercel"}
+    ]
+  }'
+```
+
+Decisions are markdown files at `~/.ultra-beers/decisions/`. You can `cat` or grep them like anything else.
+
 ## Per-plan working directory
 
 Each plan has an `agent cwd` field at the top of the workspace (or pass `--cwd` to the CLI). The three Claude subprocesses are spawned with that cwd, so the Verifier can `grep` and `ls` your actual repo when fact-checking the plan. The value is persisted in the plan's markdown frontmatter:
