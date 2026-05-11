@@ -122,6 +122,20 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Repo browser (v0.7)
+
+A `/repos` tab that auto-detects local git repos and surfaces their open GitHub issues via the `gh` CLI. Each issue gets a **plan** and **decide** button that pre-fills the existing ultra-beers UIs with the issue body as context.
+
+Defaults: scans `~/Projects/active`, `~/Projects`, and `~/Documents/GitHub` for git directories on first launch. Override or add roots in `~/.ultra-beers/config.json`:
+
+```json
+{
+  "repoRoots": [{ "path": "~/code" }]
+}
+```
+
+Each repo card shows current branch, uncommitted-changes dot, last-commit age, and (when expanded) the open issues from GitHub. Requires `gh` to be installed and authenticated; repos without a GitHub remote still show metadata but no issues.
+
 ## Vault browser (v0.6)
 
 Read-only browser for your Obsidian-style markdown vaults. Configured at `~/.ultra-beers/config.json`:

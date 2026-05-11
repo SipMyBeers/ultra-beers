@@ -8,8 +8,13 @@ export type VaultConfig = {
   path: string;
 };
 
+export type RepoRoot = {
+  path: string;
+};
+
 export type Config = {
   vaults: VaultConfig[];
+  repoRoots?: RepoRoot[];
 };
 
 const ROOT = path.join(os.homedir(), ".ultra-beers");
@@ -34,6 +39,16 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
+async function autoDetectRepoRoots(): Promise<RepoRoot[]> {
+  const candidates = ["Projects/active", "Projects", "Documents/GitHub"];
+  const out: RepoRoot[] = [];
+  for (const rel of candidates) {
+    const full = path.join(os.homedir(), rel);
+    if (await exists(full)) out.push({ path: full });
+  }
+  return out;
+}
+
 async function autoDetectVaults(): Promise<VaultConfig[]> {
   const candidates: Array<{ id: string; label: string; relativePath: string }> = [
     { id: "kool", label: "Kool", relativePath: "Documents/Kool" },
@@ -54,16 +69,33 @@ export async function readConfig(): Promise<Config> {
   try {
     const raw = await fs.readFile(CONFIG_PATH, "utf8");
     const parsed = JSON.parse(raw) as Partial<Config>;
-    const vaults = Array.isArray(parsed.vaults) ? parsed.vaults : [];
-    return { vaults: vaults.map(normalizeVault).filter(Boolean) as VaultConfig[] };
-  } catch {
-    const detected = await autoDetectVaults();
-    if (detected.length > 0) {
-      const config: Config = { vaults: detected };
-      await writeConfig(config);
-      return config;
+    const vaults = Array.isArray(parsed.vaults)
+      ? (parsed.vaults.map(normalizeVault).filter(Boolean) as VaultConfig[])
+      : [];
+    const repoRoots = Array.isArray(parsed.repoRoots)
+      ? parsed.repoRoots
+          .map((r) => (r && typeof r.path === "string" ? { path: expandPath(r.path) } : null))
+          .filter(Boolean) as RepoRoot[]
+      : [];
+    let config: Config = { vaults, repoRoots };
+    if (repoRoots.length === 0) {
+      const detected = await autoDetectRepoRoots();
+      if (detected.length > 0) {
+        config = { ...config, repoRoots: detected };
+        await writeConfig(config);
+      }
     }
-    return { vaults: [] };
+    return config;
+  } catch {
+    const [vaults, repoRoots] = await Promise.all([
+      autoDetectVaults(),
+      autoDetectRepoRoots(),
+    ]);
+    const config: Config = { vaults, repoRoots };
+    if (vaults.length > 0 || repoRoots.length > 0) {
+      await writeConfig(config);
+    }
+    return config;
   }
 }
 

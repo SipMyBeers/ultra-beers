@@ -107,6 +107,15 @@ See `src/themes/minimal.css` for the full pattern.
 - **Never** add `!important`. If you need it, your selector is wrong.
 - **Never** ship without testing all three pages above. Theme bugs love to hide on inner routes.
 
+## Extending the repo browser
+
+The `/repos` tab is backed by `src/lib/repos.ts`, which scans `repoRoots` from `~/.ultra-beers/config.json` for git directories and shells out to `git` and `gh` for metadata and issues. Notes for extending:
+
+- `gitOutput()` and `ghJson()` are the only subprocess wrappers — both use argument arrays (no `shell: true`) and 4–20s timeouts.
+- All ids derived from folder names must pass `isValidRepoId()` (kebab/dot/underscore only). Don't accept raw user input as a repo id.
+- Don't add `git push`, `git commit`, or any mutating command. The repo browser is read-only by design — mutations belong in the Plan/Decision flow, not here.
+- Issues come from `gh issue list --json ...`. To add PRs or recent commits, add a sibling function (e.g., `getRepoPulls(id)`) that mirrors `getRepoIssues`, and a new `/api/repos/[id]/pulls` route. Don't bloat the existing list endpoint.
+
 ## Adding a new vault source
 
 The `/vault` tab reads any directory listed in `~/.ultra-beers/config.json` under `vaults`. To add a new vault type beyond plain Obsidian-style markdown trees:
