@@ -1,0 +1,100 @@
+:root {
+  --bg: #0a0a0b;
+  --bg-elev: #111114;
+  --bg-elev-2: #16161a;
+  --border: #25252b;
+  --border-strong: #34343c;
+  --fg: #ededf0;
+  --fg-dim: #9b9ba3;
+  --fg-faint: #62626a;
+  --accent: #f5a623;
+  --accent-dim: #b67718;
+  --skeptic: #f06c6c;
+  --verifier: #6cb1f0;
+  --tightener: #6cf09b;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  height: 100%;
+}
+
+* { box-sizing: border-box; }
+
+textarea, input {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+textarea:focus, input:focus {
+  border-color: var(--border-strong);
+}
+
+button {
+  cursor: pointer;
+  background: var(--bg-elev);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+button:hover { background: var(--bg-elev-2); border-color: var(--border-strong); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+button.primary {
+  background: var(--accent);
+  color: #1a1004;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+button.primary:hover { background: var(--accent-dim); }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+::-webkit-scrollbar-track { background: transparent; }
+
+.markdown { line-height: 1.55; }
+.markdown h1 { font-size: 22px; font-weight: 600; margin: 12px 0 8px; }
+.markdown h2 { font-size: 18px; font-weight: 600; margin: 12px 0 6px; }
+.markdown h3 { font-size: 15px; font-weight: 600; margin: 10px 0 4px; }
+.markdown p { margin: 6px 0; color: var(--fg-dim); }
+.markdown ul, .markdown ol { padding-left: 20px; margin: 6px 0; }
+.markdown li { margin: 2px 0; color: var(--fg-dim); }
+.markdown code {
+  background: var(--bg-elev-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--fg);
+}
+.markdown pre {
+  background: var(--bg-elev-2);
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+}
+.markdown pre code { background: transparent; padding: 0; }
+.markdown blockquote {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 10px;
+  color: var(--fg-dim);
+  margin: 8px 0;
+}
+.markdown a { color: var(--accent); }
