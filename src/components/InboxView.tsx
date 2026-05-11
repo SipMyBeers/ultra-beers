@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { TopNav } from "./TopNav";
+import { ItemActions } from "./ItemActions";
 
 type DecisionPoint = {
   source: string;
@@ -46,9 +46,80 @@ const TYPE_COLOR: Record<DecisionPoint["type"], string> = {
   marker: "var(--orange)",
 };
 
-export function InboxView({ inbox }: { inbox: Inbox }) {
+export function InboxView({ inbox: initial }: { inbox: Inbox }) {
+  const [inbox, setInbox] = useState<Inbox>(initial);
   const [filter, setFilter] = useState<Filter>("all");
   const [repoFilter, setRepoFilter] = useState<string>("");
+  const [liveStatus, setLiveStatus] = useState<"connecting" | "live" | "stale" | "off">("connecting");
+  const [lastSyncMs, setLastSyncMs] = useState<number>(Date.now());
+  const [newItemIds, setNewItemIds] = useState<Set<string>>(new Set());
+  const newTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const es = new EventSource("/api/inbox/stream");
+    es.addEventListener("snapshot", (evt) => {
+      try {
+        const data = JSON.parse((evt as MessageEvent).data) as Inbox;
+        setInbox(data);
+        setLastSyncMs(Date.now());
+        setLiveStatus("live");
+      } catch {
+        // ignore malformed
+      }
+    });
+    es.addEventListener("delta", (evt) => {
+      try {
+        const data = JSON.parse((evt as MessageEvent).data) as {
+          added: string[];
+          removed: string[];
+        };
+        if (data.added.length > 0) {
+          setNewItemIds((prev) => {
+            const next = new Set(prev);
+            for (const id of data.added) {
+              next.add(id);
+              const existing = newTimers.current.get(id);
+              if (existing) clearTimeout(existing);
+              newTimers.current.set(
+                id,
+                setTimeout(() => {
+                  setNewItemIds((p) => {
+                    const np = new Set(p);
+                    np.delete(id);
+                    return np;
+                  });
+                  newTimers.current.delete(id);
+                }, 6000),
+              );
+            }
+            return next;
+          });
+        }
+      } catch {
+        // ignore
+      }
+    });
+    es.addEventListener("heartbeat", () => {
+      setLastSyncMs(Date.now());
+      setLiveStatus("live");
+    });
+    es.onerror = () => {
+      setLiveStatus("stale");
+    };
+    return () => {
+      es.close();
+      for (const t of newTimers.current.values()) clearTimeout(t);
+      newTimers.current.clear();
+      setLiveStatus("off");
+    };
+  }, []);
+
+  // Re-render once a minute so relative timestamps freshen.
+  const [, force] = useState(0);
+  useEffect(() => {
+    const i = setInterval(() => force((n) => n + 1), 30_000);
+    return () => clearInterval(i);
+  }, []);
 
   const repos = useMemo(() => {
     const seen = new Map<string, string>();
@@ -74,25 +145,39 @@ export function InboxView({ inbox }: { inbox: Inbox }) {
     return c;
   }, [inbox.items]);
 
+  const syncAge = Math.floor((Date.now() - lastSyncMs) / 1000);
+
   return (
     <main style={{ maxWidth: 1040, margin: "0 auto", padding: "28px 24px 80px" }}>
       <TopNav active="inbox" />
 
-      <header style={{ marginTop: 24, marginBottom: 14 }}>
-        <h1 style={{ color: "var(--magenta)", margin: 0 }}>inbox</h1>
-        <p
-          style={{
-            color: "var(--fg-dim)",
-            fontSize: 12,
-            fontFamily: "var(--font-mono)",
-            marginTop: 2,
-            letterSpacing: 0.4,
-          }}
-        >
-          decisions detected across {inbox.scannedRepos} active repo
-          {inbox.scannedRepos === 1 ? "" : "s"}
-          {inbox.skippedInactive > 0 ? `, ${inbox.skippedInactive} idle skipped` : ""}.
-        </p>
+      <header
+        style={{
+          marginTop: 24,
+          marginBottom: 14,
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 16,
+        }}
+      >
+        <div>
+          <h1 style={{ color: "var(--magenta)", margin: 0 }}>inbox</h1>
+          <p
+            style={{
+              color: "var(--fg-dim)",
+              fontSize: 12,
+              fontFamily: "var(--font-mono)",
+              marginTop: 2,
+              letterSpacing: 0.4,
+            }}
+          >
+            decisions detected across {inbox.scannedRepos} active repo
+            {inbox.scannedRepos === 1 ? "" : "s"}
+            {inbox.skippedInactive > 0 ? `, ${inbox.skippedInactive} idle skipped` : ""}.
+          </p>
+        </div>
+        <LiveBadge status={liveStatus} ageSeconds={syncAge} />
       </header>
 
       {inbox.pendingManualDecisions > 0 && (
@@ -168,13 +253,55 @@ export function InboxView({ inbox }: { inbox: Inbox }) {
       {filtered.length === 0 ? (
         <EmptyState items={inbox.items.length} />
       ) : (
-        <ul style={{ display: "flex", flexDirection: "column", gap: 8, padding: 0, margin: 0, listStyle: "none" }}>
+        <ul
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            padding: 0,
+            margin: 0,
+            listStyle: "none",
+          }}
+        >
           {filtered.map((item) => (
-            <InboxRow key={item.id} item={item} />
+            <InboxRow key={item.id} item={item} isNew={newItemIds.has(item.id)} />
           ))}
         </ul>
       )}
     </main>
+  );
+}
+
+function LiveBadge({
+  status,
+  ageSeconds,
+}: {
+  status: "connecting" | "live" | "stale" | "off";
+  ageSeconds: number;
+}) {
+  const { dotClass, label } = (() => {
+    if (status === "live")
+      return { dotClass: "status-dot", label: `live · ${relTime(ageSeconds)}` };
+    if (status === "stale")
+      return { dotClass: "status-dot error", label: "reconnecting…" };
+    if (status === "connecting")
+      return { dotClass: "status-dot stale", label: "connecting…" };
+    return { dotClass: "status-dot stale", label: "offline" };
+  })();
+  return (
+    <span
+      className="tag"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontFamily: "var(--font-heading)",
+        fontSize: 9,
+      }}
+    >
+      <span className={dotClass} style={{ marginRight: 0 }} />
+      {label}
+    </span>
   );
 }
 
@@ -205,68 +332,11 @@ function FilterBtn({
   );
 }
 
-function InboxRow({ item }: { item: InboxItem }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState<null | "plan" | "decide">(null);
+function InboxRow({ item, isNew }: { item: InboxItem; isNew: boolean }) {
   const { point } = item;
-
   const ctx = `From ${item.repoSlug ?? item.repoName}: ${point.source}#L${point.lineNumber}
 
 ${point.context || point.text}`.trim();
-
-  const decideThis = async () => {
-    setBusy("decide");
-    try {
-      const res = await fetch("/api/decisions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          title: `${item.repoName}: ${point.text.slice(0, 80)}`,
-          context: ctx,
-          options: [
-            { id: "yes", label: "Yes — proceed" },
-            { id: "no", label: "No — drop or defer" },
-            { id: "modify", label: "Modify — change scope first" },
-            { id: "spike", label: "Spike — investigate before deciding" },
-          ],
-        }),
-      });
-      const data = (await res.json()) as { decision?: { id: string } };
-      if (data.decision?.id) router.push(`/decisions/${data.decision.id}`);
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const planThis = async () => {
-    setBusy("plan");
-    try {
-      const content = `# ${point.text}
-
-## Context
-
-${ctx}
-
-## Steps
-
-1.
-2.
-3.
-
-## Verification
-
-`;
-      const res = await fetch("/api/plans", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-      const data = (await res.json()) as { plan?: { id: string } };
-      if (data.plan?.id) router.push(`/plan/${data.plan.id}`);
-    } finally {
-      setBusy(null);
-    }
-  };
 
   return (
     <li
@@ -276,9 +346,20 @@ ${ctx}
         display: "flex",
         gap: 12,
         alignItems: "flex-start",
+        outline: isNew ? "2px solid var(--accent)" : "none",
+        outlineOffset: isNew ? -1 : 0,
+        transition: "outline-color 600ms ease",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 110, flexShrink: 0 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          minWidth: 110,
+          flexShrink: 0,
+        }}
+      >
         <Link
           href={`/repos/${encodeURIComponent(item.repoId)}`}
           style={{
@@ -290,7 +371,9 @@ ${ctx}
         >
           {item.repoName}
         </Link>
-        <span style={{ fontSize: 9, color: "var(--fg-faint)", fontFamily: "var(--font-mono)" }}>
+        <span
+          style={{ fontSize: 9, color: "var(--fg-faint)", fontFamily: "var(--font-mono)" }}
+        >
           {point.source} · L{point.lineNumber} · {relTime(item.repoLastCommitAgeSeconds)}
         </span>
       </div>
@@ -325,24 +408,11 @@ ${ctx}
           </p>
         )}
       </div>
-      <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-        <button
-          onClick={planThis}
-          disabled={busy !== null}
-          className="ghost"
-          style={{ fontSize: 9, padding: "3px 8px" }}
-        >
-          {busy === "plan" ? "…" : "plan"}
-        </button>
-        <button
-          onClick={decideThis}
-          disabled={busy !== null}
-          className="ghost"
-          style={{ fontSize: 9, padding: "3px 8px" }}
-        >
-          {busy === "decide" ? "…" : "decide"}
-        </button>
-      </div>
+      <ItemActions
+        title={`${item.repoName}: ${point.text.slice(0, 80)}`}
+        context={ctx}
+        planTitle={point.text}
+      />
     </li>
   );
 }

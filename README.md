@@ -122,6 +122,17 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Live inbox + RAG integrations (v0.10)
+
+`/inbox` is now live. The page subscribes to `/api/inbox/stream` (Server-Sent Events) on mount, the server re-scans active repos every 30 seconds, and new decision points animate in with an accent outline. A live-status badge in the header shows connection state + age of last sync.
+
+New endpoint for pipelines: **`GET /api/export`** returns NDJSON (newline-delimited JSON) with every plan, decision, peer, and inbox item type-tagged for ingestion by RAG embedders or agent context loaders. Filter with `?include=plans,decisions`. See [INTEGRATIONS.md](INTEGRATIONS.md) for the full read/write contract, example curl invocations for RAG pipelines, and patterns for wrapping ultra-beers as agent tools or MCP servers.
+
+```bash
+curl -s http://localhost:4747/api/export | jq -c 'select(.type=="decision")'
+curl -N http://localhost:4747/api/inbox/stream
+```
+
 ## Inbox (v0.9)
 
 `/inbox` is the cross-project "what needs my call right now" view. It scans every git repo in your configured roots that has activity in the last 90 days, runs the same decision-point detection used in the per-repo deep-dive, and aggregates every hit into a single ranked queue.
