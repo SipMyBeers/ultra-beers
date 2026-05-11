@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
-export function TopNav({ active }: { active: "plans" | "decisions" }) {
+type Active = "plans" | "decisions" | "vault";
+
+export function TopNav({ active }: { active: Active }) {
   return (
     <nav
       style={{
@@ -25,6 +27,9 @@ export function TopNav({ active }: { active: "plans" | "decisions" }) {
         className={`nav-tab ${active === "decisions" ? "active" : ""}`}
       >
         decisions
+      </Link>
+      <Link href="/vault" className={`nav-tab ${active === "vault" ? "active" : ""}`}>
+        vault
       </Link>
       <ThemeSwitcher />
     </nav>

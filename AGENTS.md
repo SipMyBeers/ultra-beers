@@ -107,6 +107,16 @@ See `src/themes/minimal.css` for the full pattern.
 - **Never** add `!important`. If you need it, your selector is wrong.
 - **Never** ship without testing all three pages above. Theme bugs love to hide on inner routes.
 
+## Adding a new vault source
+
+The `/vault` tab reads any directory listed in `~/.ultra-beers/config.json` under `vaults`. To add a new vault type beyond plain Obsidian-style markdown trees:
+
+1. The reader is `src/lib/vault.ts` — `scanVault(rootPath)` returns a typed `VaultEntry[]` tree, `readFileFromVault(vaultPath, relPath)` reads one file. Path traversal is rejected via `path.relative` checks.
+2. To support a new extension (e.g., `.canvas`), update `ALLOWED_EXTS` in `src/lib/vault.ts`. Don't widen this to non-text formats.
+3. To skip more directories, add to `SKIP_DIRS`.
+4. The API at `src/app/api/vault/route.ts` is the only entry point — never expose vault paths through other routes.
+5. Writes to the vault are intentionally absent. Don't add them without an explicit user-facing confirmation flow; corrupted Obsidian indexes are no fun.
+
 ## Adding a new agent role
 
 The refinement engine currently runs three roles in parallel (Skeptic, Verifier, Tightener). To add a fourth:

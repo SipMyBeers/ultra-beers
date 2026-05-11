@@ -122,6 +122,28 @@ ultra-beers and Anthropic's hosted `/ultraplan` are different products with over
 
 Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
 
+## Vault browser (v0.6)
+
+Read-only browser for your Obsidian-style markdown vaults. Configured at `~/.ultra-beers/config.json`:
+
+```json
+{
+  "vaults": [
+    { "id": "kool", "label": "Kool", "path": "~/Documents/Kool" },
+    { "id": "brand-kits", "label": "Brand Kits", "path": "~/Desktop/BRAND-KITS" }
+  ]
+}
+```
+
+On first launch ultra-beers auto-detects `~/Documents/Kool/` and `~/Desktop/BRAND-KITS/` if either exists. Add more in the JSON. The browser hides dot-folders (`.git`, `.obsidian`, etc.) and only serves markdown files. Path traversal is blocked server-side.
+
+Two CTA buttons on every file:
+
+- **plan this** — create a new ultra-beers plan pre-filled with the file contents; immediately opens the plan editor.
+- **decide this** — create a yes/no/modify decision card pre-filled with the file as context; opens the chooser.
+
+Vault content stays put — ultra-beers never writes back to your vault.
+
 ## Themes (v0.5)
 
 Three bundled themes, switchable from the picker in the top-right of the nav bar:
