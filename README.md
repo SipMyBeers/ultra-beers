@@ -49,6 +49,33 @@ Open <http://localhost:4747>.
 
 Plans are stored as plain markdown at `~/.ultra-beers/plans/<id>.md`. Open them in any editor.
 
+## CLI mode
+
+If you don't want the web UI, pipe a plan to the included shell script. It posts to the running server and streams colored agent output to your terminal — visually distinct from cloud `/ultraplan`'s orange theme (ultra-beers uses cyan + magenta + green).
+
+```bash
+# from a heredoc
+./bin/ub-refine.sh <<'PLAN'
+# My plan
+1. Add Clerk auth
+2. Deploy to Vercel
+PLAN
+
+# from a file
+./bin/ub-refine.sh < plan.md
+
+# as an argument
+./bin/ub-refine.sh "Quick plan: do X then Y"
+```
+
+## Claude Code slash command
+
+A companion slash command lives at [`claude-commands/ultrabeers.md`](claude-commands/ultrabeers.md). Copy it to `~/.claude/commands/ultrabeers.md` and `/ultrabeers <plan>` will invoke ultra-beers from inside any Claude Code session, then summarize the three agents' critiques into a single patch list.
+
+```bash
+cp claude-commands/ultrabeers.md ~/.claude/commands/ultrabeers.md
+```
+
 ## How it works
 
 The Next.js API route `POST /api/refine` spawns `claude -p "<role prompt>" --output-format stream-json` once per role. Each process is a separate Claude Code session with full agent capabilities (tool use, file reading, MCP servers — whatever your default `claude` setup has). The route parses the streaming JSON output and forwards text deltas over Server-Sent Events to the browser.
@@ -61,15 +88,34 @@ For now, role prompts and counts are in [`src/lib/agents.ts`](src/lib/agents.ts)
 
 Want different agents? Want them to call MCP servers? Want to pipe through specific working directories? Open an issue and let's design it.
 
+## How this differs from cloud `/ultraplan`
+
+ultra-beers and Anthropic's hosted `/ultraplan` are different products with overlapping intent. Honest comparison:
+
+| | cloud `/ultraplan` | ultra-beers |
+|---|---|---|
+| **Where it runs** | claude.ai sandbox, repo uploaded | localhost, no upload |
+| **Repo context** | Full repo cloned in | Subprocesses inherit ultra-beers' cwd — your project isn't auto-loaded |
+| **Shape of output** | One refined plan, ready to paste back | Three separate critiques, you merge |
+| **Iteration** | Conversational back-and-forth | One-shot per click |
+| **Token streaming** | Per-token | Chunked (Claude CLI limitation) |
+| **Repo size limit** | Yes | None |
+| **Prompts visible** | No | Yes — fork [`src/lib/agents.ts`](src/lib/agents.ts) |
+| **Cost model** | Cloud-billed | Whatever your local `claude` calls cost |
+
+Cloud `/ultraplan` is **one agent improving** the plan. ultra-beers is **three agents critiquing** it from independent angles. If you want a single rewritten plan, cloud is better. If you want adversarial review with full visibility into the orchestration, ultra-beers is the right tool.
+
 ## Roadmap
 
 Ideas, not promises:
 
-- Per-plan working directory (so Verifier greps the right repo)
+- Per-plan working directory (so Verifier greps the right repo, not ultra-beers itself)
 - Apply-this-suggestion button that inserts an agent's output into the plan
-- Pluggable agent roster
+- Pluggable agent roster + custom roles
 - Diff view between plan revisions
 - Send to local Claude Code peers via the `claude-peers` MCP
+- Iterative refinement (multi-turn instead of one-shot)
+- Single-rewritten-plan output mode (closer to cloud `/ultraplan`)
 
 ## License
 
