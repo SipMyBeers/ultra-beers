@@ -101,6 +101,10 @@ For now, role prompts and counts are in [`src/lib/agents.ts`](src/lib/agents.ts)
 
 Want different agents? Want them to call MCP servers? Want to pipe through specific working directories? Open an issue and let's design it.
 
+## Contributing with an AI agent
+
+Working on this repo with Claude Code, Cursor, or any other coding agent? Point it at [AGENTS.md](AGENTS.md). It has the file map, the variable contract, the workflow for adding a new theme or agent role, and the list of things to never do (e.g., "don't migrate to Vercel" — ultra-beers is local-first by construction).
+
 ## How this differs from cloud `/ultraplan`
 
 ultra-beers and Anthropic's hosted `/ultraplan` are different products with overlapping intent. Honest comparison:
